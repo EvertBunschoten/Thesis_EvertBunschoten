@@ -72,10 +72,10 @@ for i in range(n_stage):
         os.system("MakeBlade.py Bladerow.cfg")
 
         if IN['N_dim'][0] == 2:
-            WriteUMG(row, i+1, M)
-            print("Starting UMG2 meshing...", end='                 ')
-            os.system("HYMESH.sh > mesher.log")
-            print("Done!")
+            WriteUMG(j, i+1, M, bodyForce=True, blade=True)
+            # print("Starting UMG2 meshing...", end='                 ')
+            # os.system("HYMESH.sh > mesher.log")
+            # print("Done!")
         row += 1
         os.chdir(DIR)
 
