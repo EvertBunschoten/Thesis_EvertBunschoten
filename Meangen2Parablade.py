@@ -90,9 +90,9 @@ class Meangen2Parablade:
         # Storing location of maximum thickness
         self.x_tmax = S.x_tmax
         # Storing leading edge thickness
-        self.t_le = S.t_le
+        self.t_le = 0.005 * np.ones((3, 2))# S.t_le
         # Storing trailing edge thickness
-        self.t_te = S.t_te
+        self.t_te = 0.005 * np.ones((3, 2))# S.t_te
         # Storing leading edge and trailing edge coordinates
         self.X_LE = S.X_LE
         self.X_TE = S.X_TE
@@ -294,8 +294,11 @@ class Meangen2Parablade:
                     x = d_range[n]
                     T[n, q] += 0.5 * thick(x)
 
-            for n in range(len(d_range)):
-                os.system("sed -i 's/T"+str(n+1)+"/"+", ".join([str(t) for t in T[n, :]])+"/g' Bladerow_" + str(i + 1) + ".cfg")
+            # for n in range(len(d_range)):
+            #     os.system("sed -i 's/T"+str(n+1)+"/"+", ".join([str(t) for t in T[n, :]])+"/g' Bladerow_" + str(i + 1) + ".cfg")
+            t_thingy = [0.015, 0.017, 0.019, 0.024, 0.030, 0.020]
+            for n in range(len(t_thingy)):
+                os.system("sed -i 's/T"+str(n+1)+"/"+str(t_thingy[n])+"/g' Bladerow_" + str(i + 1) + ".cfg")
             os.system("sed -i 's/D1/"+", ".join([str(d) for d in D[0, :]]) + "/g' Bladerow_" + str(i + 1) + ".cfg")
             os.system("sed -i 's/D2/" + ", ".join([str(d) for d in D[1, :]]) + "/g' Bladerow_" + str(i + 1) + ".cfg")
             os.system("sed -i 's/R_LE/" + ", ".join([str(d) for d in R_LE]) + "/g' Bladerow_" + str(i + 1) + ".cfg")

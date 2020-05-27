@@ -16,21 +16,21 @@ class WriteUMG:
         self.makeGeom()
 
         self.n_bl = 5
-        self.thc_bl = 1.4 * 10**-5
-        self.h_max_inflow = 0.0025
-        self.h_min_inflow = 0.00025
+        self.thc_bl = 1.4e-5
+        self.h_max_inflow = 3e-3
+        self.h_min_inflow = 1e-4
         self.radCrv_inflow = 5
 
-        self.h_max_perio = 0.0025
-        self.h_min_perio = 0.00025
+        self.h_max_perio = 3e-3
+        self.h_min_perio = 1e-4
         self.radCrv_perio = 5
 
         self.h_max_blade = 0.0003
-        self.h_min_blade = 0.00003
+        self.h_min_blade = 1e-5
         self.radCrv_blade = 5
 
-        self.h_max_outflow = 0.0025
-        self.h_min_outflow = 0.00025
+        self.h_max_outflow = 3e-3
+        self.h_min_outflow = 1e-4
         self.radCrv_outflow = 5
 
         os.system("cp ../../createmesh.template ./")
@@ -45,6 +45,72 @@ class WriteUMG:
             self.makeBladeMesh()
         else:
             print("No blade mesh creation requested")
+    def makeGeom2(self):
+        x_le = self.Meangen.X_LE
+        x_te = self.Meangen.X_TE
+
+        coordDir = os.getcwd() + "/output/coordinates/surface_coordinates.csv"
+        p, x, y, u, v = np.loadtxt(coordDir, unpack=True, delimiter=',\t', skiprows=1)
+        if self.Meangen.machineType == 'C':
+            if self.rowNumber % 2 != 0:
+                pitch = (2 * np.pi * self.Meangen.r_m[self.stage - 1])/self.Meangen.N_b_R[self.stage - 1]
+            else:
+                pitch = (2 * np.pi * self.Meangen.r_m[self.stage - 1]) / self.Meangen.N_b_S[self.stage - 1]
+        else:
+            if self.rowNumber % 2 != 0:
+                pitch = (2 * np.pi * self.Meangen.r_m[self.stage - 1])/self.Meangen.N_b_S[self.stage - 1]
+            else:
+                pitch = (2 * np.pi * self.Meangen.r_m[self.stage - 1]) / self.Meangen.N_b_R[self.stage - 1]
+        self.Pitch = pitch
+        x1 = min(x)
+        y1 = 0.0
+
+        x2 = x1
+        y2 = pitch * self.n_blade
+
+        x3 = max(x)
+        y3 = y2
+
+        x4 = x3
+        y4 = 0.0
+
+        if self.stage == 1 and self.rowNumber == 1:
+            x_fwd = x1 - (x3 - x1)
+            x_bck = 0.5 * (x_te[1, self.rowNumber - 1] + self.Meangen.X_LE[1, self.rowNumber])
+        elif self.stage == self.Meangen.n_stage and self.rowNumber == 2:
+            x_fwd = 0.5 * (x_le[1, self.rowNumber - 1] + self.Meangen.X_TE[1, self.rowNumber - 2])
+            x_bck = x3 + (x3 - x1)
+        else:
+            x_fwd = 0.5 * (x_le[1, self.rowNumber - 1] + self.Meangen.X_TE[1, self.rowNumber - 2])
+            x_bck = 0.5 * (x_te[1, self.rowNumber - 1] + self.Meangen.X_LE[1, self.rowNumber])
+
+        # self.X_curve = [[x_fwd, x_fwd], [x1, x1], [x_fwd, x1], [x_fwd, x1],
+        #                 [x1, x1], [x4, x3], [x1, x4], [x2, x3],
+        #                 [x4, x3], [x_bck, x_bck], [x4, x_bck], [x3, x_bck]]
+        self.X_curve = [[x_fwd, x1], [x1, x1], [x1, x_fwd], [x_fwd, x_fwd],
+                        [x1, x4], [x4, x4], [x3, x2], [x2, x1],
+                        [x4, x_bck], [x_bck, x_bck], [x_bck, x3], [x3, x4]]
+        # self.Y_curve = [[0, y2], [0, y2], [0, 0], [y2, y2],
+        #                 [y1, y2], [y4, y3], [0, 0], [y2, y2],
+        #                 [y4, y3], [0, y2], [0, 0], [y2, y2]]
+        self.Y_curve = [[0, 0], [0, y2], [y2, y2], [y2, 0],
+                        [0, 0], [0, y2], [y2, y2], [y2, 0],
+                        [0, 0], [0, y2], [y2, y2], [y2, 0]]
+        print(self.X_curve)
+        self.names = ["PERIO_DOWN", "OUTFLOW", "PERIO_UP", "INFLOW",
+                      "PERIO_DOWN", "OUTFLOW", "PERIO_UP", "INFLOW",
+                      "PERIO_DOWN", "OUTFLOW", "PERIO_UP", "INFLOW"]
+        self.types = [4, 3, 5, 1,
+                      4, 3, 5, 1,
+                      4, 3, 5, 1]
+        self.periodic = [3, 0, 1, 0,
+                         3, 0, 1, 0,
+                         3, 0, 1, 0]
+        self.order = [1, 2, 3, 4,
+                      1, 2, 3, 4,
+                      1, 2, 3, 4]
+
+
     def makeGeom(self):
 
         x_le = self.Meangen.X_LE
@@ -126,6 +192,7 @@ class WriteUMG:
 
 
     def makeBFMMesh(self):
+        self.makeGeom2()
         if os.path.exists("BFMMesh"):
             print("Directory already exists, rewriting files")
         else:
@@ -135,63 +202,87 @@ class WriteUMG:
         if not os.path.exists("Db"):
             os.system("mkdir Db")
         fileDir = os.getcwd() + "/Db/"
-        os.chdir(fileDir)
 
-        geomFile = open("geometry."+self.name, "w+")
-        geomFile.write("Number of surfaces\n%i\n" % (len(self.names) - 2))
-        for i in range(2, len(self.names)):
-            geomFile.write("%s\n' S '\n" % (self.names[i]))
-            geomFile.write("dim\tnp\n2\t%i\nx\ty\n" % (len(self.X_curve[i])))
-            for j in range(len(self.X_curve[i])):
-                geomFile.write("%+.5e\t%+.5e\n" % (self.X_curve[i][j], self.Y_curve[i][j]))
-        geomFile.close()
+        zone_names = ["inlet", "channel", "outlet"]
+        meshFile = open("BFM_mesh.su2", "w+")
+        meshFile.write("NZONE=  "+str(len(zone_names))+"\n")
+        for k in range(len(zone_names)):
+            os.chdir(fileDir)
 
-        topoFile = open("topology."+self.name, "w+")
-        topoFile.write("curve type\tperiodic curve\tModifiable curve\n")
-        for i in range(2, len(self.types)):
-            j = i - 1
-            topoFile.write("%i\t%i\t%i\n" % (self.types[i], max([0, self.periodic[i]-2]), 0))
-        topoFile.write("Number of ZONE\n")
-        topoFile.write("1\nZONE 1\n")
-        for i in range(2, len(self.order)-1):
-            topoFile.write(" %i\n" % (self.order[i] - 2))
-        topoFile.write("%i\n" % (-(self.order[-1]-2)))
-        topoFile.close()
+            geomFile = open("geometry."+zone_names[k], "w+")
+            geomFile.write("Number of surfaces\n%i\n" % 4)
+            for i in range(4*k, 4*(k + 1)):
+                geomFile.write("%s\n' S '\n" % (self.names[i]))
+                geomFile.write("dim\tnp\n2\t%i\nx\ty\n" % (len(self.X_curve[i])))
+                for j in range(len(self.X_curve[i])):
+                    geomFile.write("%+.5e\t%+.5e\n" % (self.X_curve[i][j], self.Y_curve[i][j]))
+            geomFile.close()
 
-        spacingFile = open("spacingcontrol."+self.name, "w+")
-        spacingFile.write("thk_bl\tn\tBC\tGEOM\tCV\n")
-        spacingFile.write("%+.5e\t%i\taxl\t0\n\n" % (self.thc_bl, 5))
-        spacingFile.write("PITCH\txc\tyc\n")
-        spacingFile.write("%+.5e\t1.0\t1.0\n\n" % (self.Pitch))
-        spacingFile.write("1\tINFLOW\th_min\th_max\tNode per RadCRv\n")
-        spacingFile.write("%+.5e\t%+.5e\t%i\n" % (self.h_min_inflow, self.h_max_inflow, self.radCrv_inflow))
-        spacingFile.write("8\tBLADE\th_min\th_max\tNode per RadCRv\n")
-        spacingFile.write("%+.5e\t%+.5e\t%i\n" % (self.h_min_blade, self.h_max_blade, self.radCrv_blade))
-        spacingFile.write("3\tOUTFLOW\th_min\th_max\tNode per RadCRv\n")
-        spacingFile.write("%+.5e\t%+.5e\t%i\n" % (self.h_min_outflow, self.h_max_outflow, self.radCrv_outflow))
-        spacingFile.write("4\tPERIO\th_min\th_max\tNode per RadCRv\n")
-        spacingFile.write("%+.5e\t%+.5e\t%i\n" % (self.h_min_perio, self.h_max_perio, self.radCrv_perio))
-        spacingFile.write("5\tPERIO\th_min\th_max\tNode per RadCRv\n")
-        spacingFile.write("%+.5e\t%+.5e\t%i\n\n" % (self.h_min_perio, self.h_max_perio, self.radCrv_perio))
-        spacingFile.write("NZONES\n1\n")
-        spacingFile.close()
+            topoFile = open("topology."+zone_names[k], "w+")
+            topoFile.write("curve type\tperiodic curve\tModifiable curve\n")
+            for i in range(4*k, 4*(k + 1)):
+                topoFile.write("%i\t%i\t%i\n" % (self.types[i], self.periodic[i], 0))
+            topoFile.write("Number of ZONE\n")
+            topoFile.write("1\nZONE 1\n")
+            for i in range(4*(k-1), 4*k - 1):
+                topoFile.write(" %i\n" % (self.order[i]))
+            topoFile.write("%i\n" % (-(self.order[-1])))
+            topoFile.close()
 
-        optionsFile = open("options", "w+")
-        optionsFile.write("fmt\tname\n")
-        optionsFile.write("'grd'\t'%s'\n" % (self.name))
-        optionsFile.write("optimization\n1\nmax element deformation\n1.0\nlayer of background grid\n3\n")
-        optionsFile.write("Periodic geometry\n.true\t1.e-6\nScaling for SU2 file\n1.0\nnumber of boundary layers\n")
-        optionsFile.write("0\t%+.5e\n" % self.thc_bl)
-        optionsFile.write("Graph for hybrid mesh construction\n.true\nKind of radial basis function(1-11)\n11\n")
-        optionsFile.write("Support radius for compact basis functions\n0.05\n")
-        optionsFile.close()
+            spacingFile = open("spacingcontrol."+zone_names[k], "w+")
+            spacingFile.write("thk_bl\tn\tBC\tGEOM\tCV\n")
+            spacingFile.write("%+.5e\t%i\taxl\t0\n\n" % (self.thc_bl, 5))
+            spacingFile.write("PITCH\txc\tyc\n")
+            spacingFile.write("%+.5e\t1.0\t1.0\n\n" % (self.Pitch))
+            spacingFile.write("1\tINFLOW\th_min\th_max\tNode per RadCRv\n")
+            if k > 0:
+                spacingFile.write("%+.5e\t%+.5e\t%i\n" % (self.h_min_inflow, self.h_max_inflow/3, self.radCrv_inflow))
+            else:
+                spacingFile.write("%+.5e\t%+.5e\t%i\n" % (self.h_min_inflow, self.h_max_inflow, self.radCrv_inflow))
+            spacingFile.write("8\tBLADE\th_min\th_max\tNode per RadCRv\n")
+            spacingFile.write("%+.5e\t%+.5e\t%i\n" % (self.h_min_blade, self.h_max_blade, self.radCrv_blade))
+            spacingFile.write("3\tOUTFLOW\th_min\th_max\tNode per RadCRv\n")
+            if k <= 1:
+                spacingFile.write("%+.5e\t%+.5e\t%i\n" % (self.h_min_outflow, self.h_max_outflow/3, self.radCrv_outflow))
+            else:
+                spacingFile.write("%+.5e\t%+.5e\t%i\n" % (self.h_min_outflow, self.h_max_outflow, self.radCrv_outflow))
 
-        os.chdir(meshDir)
-        os.system("HYMESH.sh")
+            spacingFile.write("4\tPERIO\th_min\th_max\tNode per RadCRv\n")
+            spacingFile.write("%+.5e\t%+.5e\t%i\n" % (self.h_min_perio, self.h_max_perio, self.radCrv_perio))
+            spacingFile.write("5\tPERIO\th_min\th_max\tNode per RadCRv\n")
+            spacingFile.write("%+.5e\t%+.5e\t%i\n\n" % (self.h_min_perio, self.h_max_perio, self.radCrv_perio))
+            spacingFile.write("NZONES\n1\n")
+            spacingFile.close()
 
-        os.system("cp ../createmesh.template ./createmesh.cfg")
-        os.system("sed -i 's/PITCH/%+.5e/g' createmesh.cfg" % self.Pitch)
-        os.system("SU2_PERIO < createmesh.cfg")
+            optionsFile = open("options", "w+")
+            optionsFile.write("fmt\tname\n")
+            optionsFile.write("'grd'\t'%s'\n" % zone_names[k])
+            optionsFile.write("optimization\n1\nmax element deformation\n1.0\nlayer of background grid\n3\n")
+            optionsFile.write("Periodic geometry\n.true\t1.e-6\nScaling for SU2 file\n1.0\nnumber of boundary layers\n")
+            optionsFile.write("0\t%+.5e\n" % self.thc_bl)
+            optionsFile.write("Graph for hybrid mesh construction\n.true\nKind of radial basis function(1-11)\n11\n")
+            optionsFile.write("Support radius for compact basis functions\n0.05\n")
+            optionsFile.close()
+
+            os.chdir(meshDir)
+            os.system("HYMESH.sh")
+
+            os.system("cp ../createmesh.template ./createmesh.cfg")
+            os.system("sed -i 's/PITCH/%+.5e/g' createmesh.cfg" % self.Pitch)
+            os.system("SU2_PERIO < createmesh.cfg")
+            os.system("mv ./mesh_out.su2 ./mesh_"+zone_names[k]+".su2")
+            os.system("mv ./tec_mesh.dat ./mesh_tec_" + zone_names[k] + ".dat")
+            os.system("sed -i 's/inflow/inflow_"+str(k+1)+"/g' mesh_"+zone_names[k]+".su2")
+            os.system("sed -i 's/outflow/outflow_" + str(k + 1) + "/g' mesh_" + zone_names[k] + ".su2")
+            os.system("sed -i 's/periodic1/periodic1_" + str(k + 1) + "/g' mesh_" + zone_names[k] + ".su2")
+            os.system("sed -i 's/periodic2/periodic2_" + str(k + 1) + "/g' mesh_" + zone_names[k] + ".su2")
+            os.system("sed -i 's|IZONE=  1|IZONE=  "+str(k + 1) + "|' mesh_" + zone_names[k] + ".su2")
+
+            current_mesh = open("mesh_" + zone_names[k] + ".su2", "r")
+
+            next(current_mesh)
+            for line in current_mesh:
+                meshFile.write(line)
 
 
 
