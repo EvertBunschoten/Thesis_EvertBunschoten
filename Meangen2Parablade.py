@@ -107,6 +107,15 @@ class Meangen2Parablade:
         print("Done!")
         print("Parablade file writing took "+ str(time.time() - start_time) + " seconds")
 
+        self.storeFiles()
+    def storeFiles(self):
+        Dir = os.getcwd()
+        os.system("mkdir "+Dir+"/MeangenOutput")
+        os.system("mv meangen.in "+Dir+"/MeangenOutput/")
+        os.system("mv meangen.out " + Dir + "/MeangenOutput/")
+        os.system("mv meandesign.out " + Dir + "/MeangenOutput/")
+        os.system("mv stagen.dat " + Dir + "/MeangenOutput/")
+        os.system("mv Output " + Dir + "/MeangenOutput/")
     def meangenWriter(self):
         # Defining meangen input file
         save_path = os.getcwd()

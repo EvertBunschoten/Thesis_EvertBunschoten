@@ -4,8 +4,9 @@ import pdb
 import sys
 import os
 from Meangen2Parablade import Meangen2Parablade
-from Parablade2UMG2 import WriteUMG
+from Parablade2UMG2 import WriteUMG, writeStageMesh
 from SU2Writer import writeBFMinput
+
 import time
 
 BLADE_HOME = '/home/evert/Documents/TU_Delft_administratie/Thesis/parablade'
@@ -63,7 +64,7 @@ for i in range(n_stage):
         os.system("mv Bladerow_" + str(2 * i + 2) + ".cfg" + " Stage_" + str(i + 1) + "/Bladerow_2/Bladerow.cfg")
 
 row = 1
-BFM = False
+BFM = True
 Blade = True
 for i in range(n_stage):
     for j in [1, 2]:
@@ -81,7 +82,12 @@ for i in range(n_stage):
         row += 1
         os.chdir(DIR)
     # os.chdir(DIR+"Stage_"+str(i))
+print("Writing Body-force SU2 input file...", end='     ')
 writeBFMinput(M)
+print("Done!")
 
+print("Writing Body-force SU2 machine mesh file...", end='     ')
+writeStageMesh(M)
+print("Done!")
 print("Total geometry and mesh generation took "+str(format(time.time() - t_start, ".2f")) + " seconds")
 

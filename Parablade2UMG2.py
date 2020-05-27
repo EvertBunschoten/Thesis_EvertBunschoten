@@ -17,20 +17,20 @@ class WriteUMG:
 
         self.n_bl = 5
         self.thc_bl = 1.4e-5
-        self.h_max_inflow = 3e-3
-        self.h_min_inflow = 1e-4
+        self.h_max_inflow = 1e-3
+        self.h_min_inflow = 5e-5
         self.radCrv_inflow = 5
 
-        self.h_max_perio = 3e-3
-        self.h_min_perio = 1e-4
+        self.h_max_perio = 1e-3
+        self.h_min_perio = 5e-5
         self.radCrv_perio = 5
 
         self.h_max_blade = 0.0003
         self.h_min_blade = 1e-5
         self.radCrv_blade = 5
 
-        self.h_max_outflow = 3e-3
-        self.h_min_outflow = 1e-4
+        self.h_max_outflow = 1e-3
+        self.h_min_outflow = 1e-5
         self.radCrv_outflow = 5
 
         os.system("cp ../../createmesh.template ./")
@@ -353,3 +353,37 @@ class WriteUMG:
         os.system("sed -i 's/PITCH/%+.5e/g' createmesh.cfg" % self.Pitch)
         os.system("SU2_PERIO < createmesh.cfg")
 
+class writeStageMesh:
+    def __init__(self, Meangen):
+        self.Meangen = Meangen
+        self.dir = os.getcwd()
+        self.n_stage = Meangen.n_stage
+        self.n_rows = self.n_stage * 2
+        self.n_zone = 2*self.n_stage * 3
+
+        self.replaceTerms()
+        self.meshFile = open(self.dir + "/BFM_mesh_machine.su2", "w+")
+        self.meshFile.write("NZONE=  %i\n" % self.n_zone)
+        self.writeMeshFile()
+        self.meshFile.close()
+    def replaceTerms(self):
+        k = 0
+        for i in range(self.n_stage):
+            for j in [1, 2]:
+                meshDir = self.dir + "/Stage_"+str(i+1)+"/Bladerow_"+str(j)+"/BFMMesh/"
+                os.chdir(meshDir)
+                for q in range(1, 4):
+                    os.system("sed -i 's|IZONE=  "+str(q)+"|IZONE= "+str(k*3 + q)+"|' BFM_mesh.su2")
+                    os.system("sed -i 's/inflow_"+str(q)+"/inflow_" + str(k*3 + q) + "/g' BFM_mesh.su2")
+                    os.system("sed -i 's/outflow_"+str(q)+"/outflow_" + str(k * 3 + q) + "/g' BFM_mesh.su2")
+                    os.system("sed -i 's/periodic1_" + str(q) + "/periodic1_" + str(k * 3 + q) + "/g' BFM_mesh.su2")
+                    os.system("sed -i 's/periodic2_" + str(q) + "/periodic2_" + str(k * 3 + q) + "/g' BFM_mesh.su2")
+                k += 1
+
+    def writeMeshFile(self):
+        for i in range(self.n_stage):
+            for j in [1, 2]:
+                with open(self.dir + "/Stage_"+str(i+1)+"/Bladerow_"+str(j)+"/BFMMesh/BFM_mesh.su2", "r") as BFMmesh:
+                    lines = BFMmesh.readlines()[1:]
+                    self.meshFile.writelines(lines)
+                BFMmesh.close()
