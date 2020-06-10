@@ -15,24 +15,41 @@ class WriteUMG:
         thisDir = os.getcwd()
         self.makeGeom()
 
+        np = 30
         self.n_bl = 5
         self.thc_bl = 1.4e-5
-        self.h_max_inflow = 1e-3
-        self.h_min_inflow = 5e-5
+        self.h_max_inflow = 0.0475/np
+        self.h_min_inflow = self.h_max_inflow
         self.radCrv_inflow = 5
 
-        self.h_max_perio = 1e-3
-        self.h_min_perio = 5e-5
+        self.h_max_perio = 0.0475/np
+        self.h_min_perio = self.h_max_inflow
         self.radCrv_perio = 5
 
         self.h_max_blade = 0.0003
         self.h_min_blade = 1e-5
         self.radCrv_blade = 5
 
-        self.h_max_outflow = 1e-3
-        self.h_min_outflow = 1e-5
+        self.h_max_outflow = 0.0475/np
+        self.h_min_outflow = self.h_max_inflow
         self.radCrv_outflow = 5
-
+        # self.n_bl = 5
+        # self.thc_bl = 1.4e-5
+        # self.h_max_inflow = 3e-3
+        # self.h_min_inflow = 3e-4
+        # self.radCrv_inflow = 5
+        #
+        # self.h_max_perio = 3e-3
+        # self.h_min_perio = 3e-4
+        # self.radCrv_perio = 5
+        #
+        # self.h_max_blade = 0.0004
+        # self.h_min_blade = 4e-5
+        # self.radCrv_blade = 5
+        #
+        # self.h_max_outflow = 3e-3
+        # self.h_min_outflow = 3e-4
+        # self.radCrv_outflow = 5
         os.system("cp ../../createmesh.template ./")
         if bodyForce:
             print("Starting BFM mesh computation")
@@ -96,7 +113,7 @@ class WriteUMG:
         self.Y_curve = [[0, 0], [0, y2], [y2, y2], [y2, 0],
                         [0, 0], [0, y2], [y2, y2], [y2, 0],
                         [0, 0], [0, y2], [y2, y2], [y2, 0]]
-        print(self.X_curve)
+
         self.names = ["PERIO_DOWN", "OUTFLOW", "PERIO_UP", "INFLOW",
                       "PERIO_DOWN", "OUTFLOW", "PERIO_UP", "INFLOW",
                       "PERIO_DOWN", "OUTFLOW", "PERIO_UP", "INFLOW"]
@@ -151,11 +168,11 @@ class WriteUMG:
                 pitch = (2 * np.pi * self.Meangen.r_m[self.stage - 1]) / self.Meangen.N_b_R[self.stage - 1]
         self.Pitch = pitch
         if self.stage == 1 and self.rowNumber == 1:
-            x_2 = x_0 - (x_1 - x_0)
+            x_2 = x_0 - 2*(x_1 - x_0)
             x_6 = 0.5 * (x_te[1, self.rowNumber - 1] + self.Meangen.X_LE[1, self.rowNumber])
         elif self.stage == self.Meangen.n_stage and self.rowNumber == 2:
             x_2 = 0.5 * (x_le[1, self.rowNumber - 1] + self.Meangen.X_TE[1, self.rowNumber - 2])
-            x_6 = x_1 + (x_1 - x_0)
+            x_6 = x_1 + 2*(x_1 - x_0)
         else:
             x_2 = 0.5 * (x_le[1, self.rowNumber - 1] + self.Meangen.X_TE[1, self.rowNumber - 2])
             x_6 = 0.5 * (x_te[1, self.rowNumber - 1] + self.Meangen.X_LE[1, self.rowNumber])
@@ -216,6 +233,7 @@ class WriteUMG:
                 geomFile.write("dim\tnp\n2\t%i\nx\ty\n" % (len(self.X_curve[i])))
                 for j in range(len(self.X_curve[i])):
                     geomFile.write("%+.5e\t%+.5e\n" % (self.X_curve[i][j], self.Y_curve[i][j]))
+                    print(self.Y_curve[i][j])
             geomFile.close()
 
             topoFile = open("topology."+zone_names[k], "w+")
@@ -236,21 +254,26 @@ class WriteUMG:
             spacingFile.write("%+.5e\t1.0\t1.0\n\n" % (self.Pitch))
             spacingFile.write("1\tINFLOW\th_min\th_max\tNode per RadCRv\n")
             if k > 0:
-                spacingFile.write("%+.5e\t%+.5e\t%i\n" % (self.h_min_inflow, self.h_max_inflow/3, self.radCrv_inflow))
-            else:
                 spacingFile.write("%+.5e\t%+.5e\t%i\n" % (self.h_min_inflow, self.h_max_inflow, self.radCrv_inflow))
+            else:
+                spacingFile.write("%+.5e\t%+.5e\t%i\n" % (self.h_min_inflow, self.h_max_inflow*3, self.radCrv_inflow))
             spacingFile.write("8\tBLADE\th_min\th_max\tNode per RadCRv\n")
             spacingFile.write("%+.5e\t%+.5e\t%i\n" % (self.h_min_blade, self.h_max_blade, self.radCrv_blade))
             spacingFile.write("3\tOUTFLOW\th_min\th_max\tNode per RadCRv\n")
             if k <= 1:
-                spacingFile.write("%+.5e\t%+.5e\t%i\n" % (self.h_min_outflow, self.h_max_outflow/3, self.radCrv_outflow))
-            else:
                 spacingFile.write("%+.5e\t%+.5e\t%i\n" % (self.h_min_outflow, self.h_max_outflow, self.radCrv_outflow))
-
-            spacingFile.write("4\tPERIO\th_min\th_max\tNode per RadCRv\n")
-            spacingFile.write("%+.5e\t%+.5e\t%i\n" % (self.h_min_perio, self.h_max_perio, self.radCrv_perio))
-            spacingFile.write("5\tPERIO\th_min\th_max\tNode per RadCRv\n")
-            spacingFile.write("%+.5e\t%+.5e\t%i\n\n" % (self.h_min_perio, self.h_max_perio, self.radCrv_perio))
+            else:
+                spacingFile.write("%+.5e\t%+.5e\t%i\n" % (self.h_min_outflow, self.h_max_outflow*3, self.radCrv_outflow))
+            if k == 1:
+                spacingFile.write("4\tPERIO\th_min\th_max\tNode per RadCRv\n")
+                spacingFile.write("%+.5e\t%+.5e\t%i\n" % (self.h_min_perio, self.h_max_perio, self.radCrv_perio))
+                spacingFile.write("5\tPERIO\th_min\th_max\tNode per RadCRv\n")
+                spacingFile.write("%+.5e\t%+.5e\t%i\n\n" % (self.h_min_perio, self.h_max_perio, self.radCrv_perio))
+            else:
+                spacingFile.write("4\tPERIO\th_min\th_max\tNode per RadCRv\n")
+                spacingFile.write("%+.5e\t%+.5e\t%i\n" % (self.h_min_perio, self.h_max_perio*3, self.radCrv_perio))
+                spacingFile.write("5\tPERIO\th_min\th_max\tNode per RadCRv\n")
+                spacingFile.write("%+.5e\t%+.5e\t%i\n\n" % (self.h_min_perio, self.h_max_perio*3, self.radCrv_perio))
             spacingFile.write("NZONES\n1\n")
             spacingFile.close()
 
@@ -268,7 +291,7 @@ class WriteUMG:
             os.system("HYMESH.sh")
 
             os.system("cp ../createmesh.template ./createmesh.cfg")
-            os.system("sed -i 's/PITCH/%+.5e/g' createmesh.cfg" % self.Pitch)
+            os.system("sed -i 's/PITCH/%+.5e/g' createmesh.cfg" % (self.Pitch))
             os.system("SU2_PERIO < createmesh.cfg")
             os.system("mv ./mesh_out.su2 ./mesh_"+zone_names[k]+".su2")
             os.system("mv ./tec_mesh.dat ./mesh_tec_" + zone_names[k] + ".dat")
@@ -348,7 +371,9 @@ class WriteUMG:
         optionsFile.close()
 
         os.chdir(meshDir)
-        os.system("HYMESH.sh")
+        os.system("mcrv.exe")
+        os.system("bgrid.exe")
+        os.system("umg2d.exe")
         os.system("cp ../createmesh.template ./createmesh.cfg")
         os.system("sed -i 's/PITCH/%+.5e/g' createmesh.cfg" % self.Pitch)
         os.system("SU2_PERIO < createmesh.cfg")
@@ -387,3 +412,39 @@ class writeStageMesh:
                     lines = BFMmesh.readlines()[1:]
                     self.meshFile.writelines(lines)
                 BFMmesh.close()
+
+class writeStageMesh_Blade:
+    def __init__(self, Meangen):
+        self.Meangen = Meangen
+        self.dir = os.getcwd()
+        self.n_stage = Meangen.n_stage
+        self.n_rows = self.n_stage * 2
+        self.n_zone = self.n_rows
+
+        self.replaceTerms()
+        self.meshFile = open(self.dir + "/Blade_mesh_machine.su2", "w+")
+        self.meshFile.write("NZONE=  %i\n" % self.n_zone)
+        self.writeMeshFile()
+        self.meshFile.close()
+    def replaceTerms(self):
+        k = 1
+        for i in range(self.n_stage):
+            for j in [1, 2]:
+                meshDir = self.dir + "/Stage_"+str(i+1)+"/Bladerow_"+str(j)+"/BladeMesh/"
+                os.chdir(meshDir)
+                os.system("mv mesh_out.su2 Blade_mesh.su2")
+
+                os.system("sed -i 's|IZONE=  1"+"|IZONE= "+str(k)+"|' Blade_mesh.su2")
+                os.system("sed -i 's/inflow/inflow_" + str(k) + "/g' Blade_mesh.su2")
+                os.system("sed -i 's/outflow/outflow_" + str(k) + "/g' Blade_mesh.su2")
+                os.system("sed -i 's/periodic1/periodic1_" + str(k) + "/g' Blade_mesh.su2")
+                os.system("sed -i 's/periodic2/periodic2_" + str(k) + "/g' Blade_mesh.su2")
+                k += 1
+
+    def writeMeshFile(self):
+        for i in range(self.n_stage):
+            for j in [1, 2]:
+                with open(self.dir + "/Stage_"+str(i+1)+"/Bladerow_"+str(j)+"/BladeMesh/Blade_mesh.su2", "r") as Blademesh:
+                    lines = Blademesh.readlines()[1:]
+                    self.meshFile.writelines(lines)
+                Blademesh.close()

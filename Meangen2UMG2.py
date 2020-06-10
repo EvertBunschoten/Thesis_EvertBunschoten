@@ -4,8 +4,9 @@ import pdb
 import sys
 import os
 from Meangen2Parablade import Meangen2Parablade
-from Parablade2UMG2 import WriteUMG, writeStageMesh
+from Parablade2UMG2 import WriteUMG, writeStageMesh, writeStageMesh_Blade
 from SU2Writer import writeBFMinput
+from Mesh3D import Gmesh3D
 
 import time
 
@@ -65,7 +66,9 @@ for i in range(n_stage):
 
 row = 1
 BFM = True
-Blade = True
+Blade = False
+
+
 for i in range(n_stage):
     for j in [1, 2]:
         os.chdir(os.getcwd()+"/Stage_"+str(i+1)+"/Bladerow_"+str(j)+"/")
@@ -75,19 +78,28 @@ for i in range(n_stage):
         os.system("MakeBlade.py Bladerow.cfg")
 
         if IN['N_dim'][0] == 2:
-            WriteUMG(j, i+1, M, bodyForce=BFM, blade=False)
+            WriteUMG(j, i+1, M, bodyForce=BFM, blade=Blade)
             # print("Starting UMG2 meshing...", end='                 ')
             # os.system("HYMESH.sh > mesher.log")
             # print("Done!")
         row += 1
         os.chdir(DIR)
     # os.chdir(DIR+"Stage_"+str(i))
-print("Writing Body-force SU2 input file...", end='     ')
-writeBFMinput(M)
-print("Done!")
 
-print("Writing Body-force SU2 machine mesh file...", end='     ')
-writeStageMesh(M)
-print("Done!")
-print("Total geometry and mesh generation took "+str(format(time.time() - t_start, ".2f")) + " seconds")
+Gmesh3D(M)
+if BFM:
+    print("Writing Body-force SU2 input file...", end='     ')
+    writeBFMinput(M)
+    print("Done!")
+    print(M.Z_LE)
+
+    # print("Writing Body-force SU2 machine mesh file...", end='     ')
+    # writeStageMesh(M)
+    # print("Done!")
+# if Blade:
+#     os.chdir(DIR)
+#     print("Writing Blade analysis SU2 machine mesh file...", end='     ')
+#     writeStageMesh_Blade(M)
+#     print("Done!")
+# print("Total geometry and mesh generation took "+str(format(time.time() - t_start, ".2f")) + " seconds")
 

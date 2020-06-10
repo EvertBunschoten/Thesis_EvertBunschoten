@@ -19,7 +19,7 @@ class writeBFMinput:
     def getBFMinputs(self):
         for i in range(self.M.n_stage):
             for j in [1, 2]:
-                with open(self.dir + "/Stage_"+str(i+1)+"/Bladerow_"+str(j)+"/output/mesh_files/BFM_2D_input", "r") as file:
+                with open(self.dir + "/Stage_"+str(i+1)+"/Bladerow_"+str(j)+"/output/mesh_files/BFM_input", "r") as file:
                     first_line = file.readline().split('\t', 2)
                     first_line[-1] = first_line[-1].strip()
                     self.n_sec = int(first_line[0])
@@ -28,11 +28,20 @@ class writeBFMinput:
                 file.close()
 
     def writeInputFile(self):
+
         for i in range(self.M.n_stage):
             for j in [1, 2]:
-                with open(self.dir + "/Stage_"+str(i+1)+"/Bladerow_"+str(j)+"/output/mesh_files/BFM_2D_input", "r") as file:
+                with open(self.dir + "/Stage_"+str(i+1)+"/Bladerow_"+str(j)+"/output/mesh_files/BFM_input", "r") as file:
                     lines = file.readlines()[1:]
-                    self.BFMfile.writelines(lines)
+                    if self.M.machineType == 'C':
+                        rotFac = [1, 0]
+                        blades = [self.M.N_b_R[i], self.M.N_b_S[i]]
+                    else:
+                        rotFac = [0, 1]
+                        blades = [self.M.N_b_S[i], self.M.N_b_R[i]]
+                    for line in lines:
+                        self.BFMfile.write(line.strip()+"\t"+str(rotFac[j-1])+"\t"+str(int(blades[j-1]))+"\n")
+                    #self.BFMfile.writelines(lines)
                 file.close()
 
 

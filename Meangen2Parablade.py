@@ -4,7 +4,7 @@ import os
 import time
 from StagenReader import StagenReader
 from scipy.interpolate import interp1d
-
+import math
 
 
 
@@ -90,7 +90,7 @@ class Meangen2Parablade:
         # Storing location of maximum thickness
         self.x_tmax = S.x_tmax
         # Storing leading edge thickness
-        self.t_le = 0.005 * np.ones((3, 2))# S.t_le
+        self.t_le = 0.003 * np.ones((3, 2))# S.t_le
         # Storing trailing edge thickness
         self.t_te = 0.005 * np.ones((3, 2))# S.t_te
         # Storing leading edge and trailing edge coordinates
@@ -203,7 +203,7 @@ class Meangen2Parablade:
         self.QO_TE = QO_TE*np.ones([self.n_stage, 2])
         self.tc_m = tc_m * np.ones([self.n_stage, 3])
         self.x_tm = x_tm * np.ones([self.n_stage, 3])
-        self.eta_guess = 0.89*np.ones([self.n_stage, 1])
+        self.eta_guess = 1.0*np.ones([self.n_stage, 1])
 
 
 
@@ -222,13 +222,15 @@ class Meangen2Parablade:
             n_end = 2
             n_sec = 1
             CASCADE_TYPE = "LINEAR"
-            sec_count = 2
+            sec_count = 30
+            point_count = 30
         else:
             n_start = 0
             n_end = 3
             n_sec = 3
             CASCADE_TYPE = "ANNULAR"
-            sec_count = 10
+            sec_count = 30
+            point_count = 30
         template_dir = "/home/evert/Documents/TU_Delft_administratie/Thesis/Pythonscripts"
         # d_range = np.arange(1. / 7, 1.0 - 1. / 7, 1. / 7)
         # print(d_range)
@@ -254,10 +256,15 @@ class Meangen2Parablade:
 
             os.system("sed -i 's/CAS_type/"+CASCADE_TYPE+"/g' Bladerow_"+str(i+1)+ ".cfg")
             os.system("sed -i 's/N_sec/" + str(sec_count) + "/g' Bladerow_" + str(i + 1) + ".cfg")
+            os.system("sed -i 's/N_point/" + str(point_count) + "/g' Bladerow_" + str(i + 1) + ".cfg")
             os.system("sed -i 's/N_dim/"+str(int(self.Dimension))+"/g' Bladerow_"+str(i+1) + ".cfg")
 
             os.system("sed -i 's/N_blade/" + str(int(self.N_b[i])) + "/g' Bladerow_"+str(i+1)+ ".cfg")
-            stagger = np.transpose(np.array(0.5 * (self.theta_in[n_start:n_end, i] + self.theta_out[n_start:n_end, i])))
+            tan_stagger = np.transpose(np.array(0.5 * (np.tan(self.theta_in[n_start:n_end, i]*np.pi/180.0) +
+                                                       np.tan(self.theta_out[n_start:n_end, i]*np.pi/180.0))))
+            stagger = []
+            for m in range(len(tan_stagger)):
+                stagger.append(math.atan(tan_stagger[m])*180.0/np.pi)
             os.system("sed -i 's/STAGGER/"+", ".join([str(s) for s in stagger])+"/g' Bladerow_"+str(i+1)+".cfg")
 
             X_hub = [0.75*self.X_LE[0, i] + 0.25*self.X_TE[0, i], 0.75*self.X_TE[0, i] + 0.25*self.X_LE[0, i]]
