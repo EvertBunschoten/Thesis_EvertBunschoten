@@ -3,8 +3,10 @@ import numpy as np
 import os
 
 class Gmesh3D:
-    wedge = 10
-    n_sec = 8
+    wedge = 4
+    n_sec = 4
+    n_point = 20
+    fileName = "3DBFM.su2"
     pointID = None
     xCoords = None
     yCoords = None
@@ -17,14 +19,15 @@ class Gmesh3D:
 
     Rev = None
 
-    def __init__(self, Meangen):
+    def __init__(self, Meangen, IN):
         self.M = Meangen
 
         self.model = gmsh.model
         self.factory = self.model.geo
         gmsh.initialize()
         gmsh.option.setNumber("General.Terminal", 1)
-
+        self.fac_inlet = IN["INLET_FACTOR"][0]
+        self.fac_outlet = IN["OUTLET_FACTOR"][0]
         self.model.add("3DBFM")
         self.makePoints()
         self.makeLines()
@@ -34,9 +37,21 @@ class Gmesh3D:
 
         gmsh.model.geo.synchronize()
         gmsh.model.mesh.generate(3)
-        gmsh.write("3DBFM.su2")
-        # gmsh.fltk.run()
+        gmsh.write(self.fileName)
+        #gmsh.fltk.run()
 
+        self.makePerio()
+    def makePerio(self):
+        file = open("createPerio.cfg", "w+")
+        file.write("MARKER_PERIODIC= (periodic_1, periodic_2, 0.0, 0.0, 0.0, " + str(
+            float(self.wedge)) + ", 0.0, 0.0, 0.0, 0.0, 0.0)\n")
+        file.write("MESH_FILENAME= "+self.fileName+"\n")
+        file.write("MESH_FORMAT= SU2\n")
+        file.write("MESH_OUT_FILENAME= "+self.fileName[:-4]+"_perio.su2\n")
+
+        file.close()
+
+        os.system("SU2_PERIO < createPerio.cfg > SU2_PERIO.out")
     def nameBoundaries(self):
         periodic_1 = self.model.addPhysicalGroup(2, [1])
         self.model.setPhysicalName(2, periodic_1, "periodic_1")
@@ -125,54 +140,54 @@ class Gmesh3D:
         Y_p.append(R_LE[0, 0] * np.sin(0.5 * self.wedge * np.pi / 180))
         Z_p.append(R_LE[0, 0] * np.cos(0.5 * self.wedge * np.pi / 180))
         points.append(i_point)
-        L_c.append(2 * self.M.chord_R[0] / 30)
+        L_c.append(self.fac_inlet * self.M.chord_R[0] / self.n_point)
         i_point += 1
         X_p.append(X_LE[-1, 0] - 2 * self.M.chord_R[0])
         Y_p.append(R_LE[-1, 0] * np.sin(0.5 * self.wedge * np.pi / 180))
         Z_p.append(R_LE[-1, 0] * np.cos(0.5 * self.wedge * np.pi / 180))
         points.append(i_point)
-        L_c.append(2 * self.M.chord_R[0] / 30)
+        L_c.append(self.fac_inlet * self.M.chord_R[0] / self.n_point)
         i_point += 1
         for j in range(n_rows):
                 X_p.append(X_LE[0, j])
                 Y_p.append(R_LE[0, j] * np.sin(0.5 * self.wedge * np.pi/180))
                 Z_p.append(R_LE[0, j] * np.cos(0.5 * self.wedge * np.pi / 180))
                 points.append(i_point)
-                L_c.append((X_TE[0, j] - X_LE[0, j]) / 30)
+                L_c.append((X_TE[0, j] - X_LE[0, j]) / self.n_point)
                 i_point += 1
 
                 X_p.append(X_LE[-1, j])
                 Y_p.append(R_LE[-1, j] * np.sin(0.5 * self.wedge * np.pi / 180))
                 Z_p.append(R_LE[-1, j] * np.cos(0.5 * self.wedge * np.pi / 180))
                 points.append(i_point)
-                L_c.append((X_TE[-1, j] - X_LE[-1, j]) / 30)
+                L_c.append((X_TE[-1, j] - X_LE[-1, j]) / self.n_point)
                 i_point += 1
 
                 X_p.append(X_TE[0, j])
                 Y_p.append(R_TE[0, j] * np.sin(0.5 * self.wedge * np.pi / 180))
                 Z_p.append(R_TE[0, j] * np.cos(0.5 * self.wedge * np.pi / 180))
                 points.append(i_point)
-                L_c.append((X_TE[0, j] - X_LE[0, j]) / 30)
+                L_c.append((X_TE[0, j] - X_LE[0, j]) / self.n_point)
                 i_point += 1
 
                 X_p.append(X_TE[-1, j])
                 Y_p.append(R_TE[-1, j] * np.sin(0.5 * self.wedge * np.pi / 180))
                 Z_p.append(R_TE[-1, j] * np.cos(0.5 * self.wedge * np.pi / 180))
                 points.append(i_point)
-                L_c.append((X_TE[-1, j] - X_LE[-1, j]) / 30)
+                L_c.append((X_TE[-1, j] - X_LE[-1, j]) / self.n_point)
                 i_point += 1
 
         X_p.append(X_p[-2] + 2 * self.M.chord_S[-1])
         Y_p.append(Y_p[-2])
         Z_p.append(Z_p[-2])
         points.append(i_point)
-        L_c.append(2 * self.M.chord_S[-1] / 30)
+        L_c.append(self.fac_outlet * self.M.chord_S[-1] / self.n_point)
         i_point += 1
         X_p.append(X_p[-2] + 2 * self.M.chord_S[-1])
         Y_p.append(Y_p[-2])
         Z_p.append(Z_p[-2])
         points.append(i_point)
-        L_c.append(2 * self.M.chord_S[-1] / 30)
+        L_c.append(self.fac_outlet * self.M.chord_S[-1] / self.n_point)
         i_point += 1
 
         self.pointID = points

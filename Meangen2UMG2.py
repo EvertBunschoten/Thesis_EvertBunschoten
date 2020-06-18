@@ -1,33 +1,20 @@
-import numpy as np
-import matplotlib.pyplot as plt
-import pdb
+#!/home/evert/anaconda3/bin/python3
 import sys
 import os
-from Meangen2Parablade import Meangen2Parablade
-from Parablade2UMG2 import WriteUMG, writeStageMesh, writeStageMesh_Blade
-from SU2Writer import writeBFMinput
-from Mesh3D import Gmesh3D
+
 
 import time
 
-BLADE_HOME = '/home/evert/Documents/TU_Delft_administratie/Thesis/parablade'
-# BLADE_HOME = os.environ["BLADE_HOME"]
+HOME = os.environ["M2BFM"]
+sys.path.append(HOME + "executables/")
 
-sys.path.append(BLADE_HOME+'/bin/')
-sys.path.append(BLADE_HOME+'/src/')
-sys.path.append(BLADE_HOME+'/common/')
-
-#---------------------------------------------------------------------------------------------#
-# Importing ParaBlade classes and functions
-#---------------------------------------------------------------------------------------------#
-from common import *
-from config import *
+from Meangen2Parablade import Meangen2Parablade
+from Parablade2UMG2 import WriteUMG, writeStageMesh, writeStageMesh_Blade
+from SU2Writer import writeBFMinput, ReadUserInput
+from Mesh3D import Gmesh3D
 
 DIR = os.getcwd() + '/'
-# try:
-#     INFile = DIR + sys.argv[-1]
-# except:
-#     INFile = DIR + 'M2P.cfg'  # Default File name
+
 
 try:
     IN = ReadUserInput(DIR + 'M2P.cfg')
@@ -42,9 +29,7 @@ M = Meangen2Parablade(IN)
 n_stage = int(IN["N_stage"][0])
 n_rows = 2*n_stage
 
-# for i in range(n_rows):
-#     os.system("mkdir Bladerow_"+str(i+1))
-#     os.system("mv "+os.getcwd() + "/Bladerow_"+str(i+1)+".cfg " + os.getcwd() + "/Bladerow_"+str(i+1)+"/")
+
 for i in range(n_stage):
     if os.path.isdir("Stage_"+str(i+1)):
         if os.path.isdir("Stage_"+str(i+1) + "/Bladerow_1"):
@@ -82,20 +67,24 @@ for i in range(n_stage):
             # print("Starting UMG2 meshing...", end='                 ')
             # os.system("HYMESH.sh > mesher.log")
             # print("Done!")
+
         row += 1
         os.chdir(DIR)
     # os.chdir(DIR+"Stage_"+str(i))
 
-Gmesh3D(M)
 if BFM:
     print("Writing Body-force SU2 input file...", end='     ')
     writeBFMinput(M)
     print("Done!")
-    print(M.Z_LE)
 
-    # print("Writing Body-force SU2 machine mesh file...", end='     ')
-    # writeStageMesh(M)
-    # print("Done!")
+    if IN['N_dim'][0] == 3:
+        print("Writing 3D BFM mesh:...")
+        Gmesh3D(M, IN)
+        print("Done!")
+    else:
+        print("Writing Body-force SU2 machine mesh file...", end='     ')
+        writeStageMesh(M)
+        print("Done!")
 # if Blade:
 #     os.chdir(DIR)
 #     print("Writing Blade analysis SU2 machine mesh file...", end='     ')

@@ -55,16 +55,25 @@ class Meangen2Parablade:
         self.QO_TE_R = IN["QO_TE_R"]            # Trailing edge QO angle for rotor rows
         self.QO_LE_S = IN["QO_LE_S"]            # Leading edge QO angle for stator rows
         self.QO_TE_S = IN["QO_TE_S"]            # Trailing edge QO angle for stator rows
-        self.tc_m_R = IN["tc_m_R"]              # Maximum thickness-to-chord ratios for rotor blade row
-        self.tc_m_S = IN["tc_m_S"]              # Maximum thickness-to-chord ratios for stator blade row
-        self.x_tm_R = IN["x_tm_R"]              # Chordwise location of maximum thickness for rotor row
-        self.x_tm_S = IN["x_tm_S"]              # Chordwise location of maximum thickness for stator row
         self.eta_guess = IN["eta_guess"]        # Efficiency guess for each respective stage
         self.Dev_R_LE = IN["dev_R_LE"]          # Rotor incidence angles
         self.Dev_R_TE = IN["dev_R_TE"]          # Rotor deviation angles
         self.Dev_S_LE = IN["dev_S_LE"]          # Stator incidence angles
         self.Dev_S_TE = IN["dev_S_TE"]          # Stator deviation angles
-
+        self.t_LE_R = IN["t_le_R"]
+        self.t_TE_R = IN["t_te_R"]
+        self.t_LE_S = IN["t_le_S"]
+        self.t_TE_S = IN["t_te_S"]
+        self.D_1_R = IN["d_1_R"]
+        self.D_2_R = IN["d_2_R"]
+        self.D_1_S = IN["d_1_S"]
+        self.D_2_S = IN["d_2_S"]
+        self.T_R = np.zeros([self.n_stage, 6])
+        self.T_S = np.zeros([self.n_stage, 6])
+        for i in range(self.n_stage):
+            for j in range(6):
+                self.T_R[i, j] = IN["T_"+str(j+1)+"_R"][i]
+                self.T_S[i, j] = IN["T_" + str(j + 1) + "_S"][i]
         # Defining the machine type
         self.machineDefinition()
 
@@ -74,8 +83,10 @@ class Meangen2Parablade:
         # Getting directory to Meangen executable and initializing Meangen
         print("Starting Meangen...", end='                 ')
         start_time = time.time()
-        meangen_dir = "/home/evert/Documents/TU_Delft_administratie/Thesis/Pythonscripts"
-        os.system(meangen_dir + "/a.out < "+meangen_dir+"/input > Output")
+        # meangen_dir = "/home/evert/Documents/TU_Delft_administratie/Thesis/Pythonscripts"
+        #os.system(meangen_dir + "/a.out < "+meangen_dir+"/input > Output")
+        HOME = os.environ["M2BFM"]
+        os.system("Meangen.exe < "+HOME+"templates/input > Output")
         print("Done!")
         print("Meangen took "+str(time.time() - start_time) + " seconds")
         # Reading stagen.dat file for blade row geometry
@@ -85,21 +96,13 @@ class Meangen2Parablade:
         self.theta_in = S.theta_in
         # Storing blade row outlet metal angles
         self.theta_out = S.theta_out
-        # Storing maximum thickness
-        self.t_max = S.t_max
-        # Storing location of maximum thickness
-        self.x_tmax = S.x_tmax
-        # Storing leading edge thickness
-        self.t_le = 0.003 * np.ones((3, 2))# S.t_le
-        # Storing trailing edge thickness
-        self.t_te = 0.005 * np.ones((3, 2))# S.t_te
+
         # Storing leading edge and trailing edge coordinates
         self.X_LE = S.X_LE
         self.X_TE = S.X_TE
         self.Z_LE = S.Z_LE
         self.Z_TE = S.Z_TE
-        print(self.X_LE)
-        print(self.X_TE)
+
         # Writing Parablade input file
         print("Writing Parablade input file...", end='          ')
         start_time = time.time()
@@ -107,7 +110,9 @@ class Meangen2Parablade:
         print("Done!")
         print("Parablade file writing took "+ str(time.time() - start_time) + " seconds")
 
+        # Storing Meangen output files
         self.storeFiles()
+
     def storeFiles(self):
         Dir = os.getcwd()
         os.system("mkdir "+Dir+"/MeangenOutput")
@@ -121,10 +126,6 @@ class Meangen2Parablade:
         save_path = os.getcwd()
         filename = "meangen"
         completename = os.path.join(save_path, filename + ".in")
-        self.tc_m_R = np.reshape(self.tc_m_R, (self.n_stage, 3))
-        self.tc_m_S = np.reshape(self.tc_m_S, (self.n_stage, 3))
-        self.x_tm_R = np.reshape(self.x_tm_R, (self.n_stage, 3))
-        self.x_tm_S = np.reshape(self.x_tm_S, (self.n_stage, 3))
         self.f = open(completename, 'wt')  # Opening input file
         self.f.write(self.machineType + "\n")  # Defining machine type
         self.f.write(self.flowPath + "\n")  # Defining flow path
@@ -169,26 +170,7 @@ class Meangen2Parablade:
                 self.f.write(str(self.QO_LE_R[i]) + "  " + str(self.QO_TE_R[i]) + "\n")  # Inputting stator QO angles
         self.f.write("N\nY\n")
         for i in range(self.n_stage):
-            self.f.write("N\n")
-            if self.machineType == 'C':
-            # Inputting first blade row thickness-to-chord ratio and location
-                self.f.write(str(self.tc_m_R[i, 0]) + "  " + str(self.x_tm_R[i, 0]) + "\n")
-                self.f.write(str(self.tc_m_R[i, 1]) + "  " + str(self.x_tm_R[i, 1]) + "\n")
-                self.f.write(str(self.tc_m_R[i, 2]) + "  " + str(self.x_tm_R[i, 2]) + "\n")
-                self.f.write("N\n")
-                # Inputting second blade row thickness-to-chord ratio and location
-                self.f.write(str(self.tc_m_S[i, 0]) + "  " + str(self.x_tm_S[i, 0]) + "\n")
-                self.f.write(str(self.tc_m_S[i, 1]) + "  " + str(self.x_tm_S[i, 1]) + "\n")
-                self.f.write(str(self.tc_m_S[i, 2]) + "  " + str(self.x_tm_S[i, 2]) + "\n")
-            else:
-                self.f.write(str(self.tc_m_S[i, 0]) + "  " + str(self.x_tm_S[i, 0]) + "\n")
-                self.f.write(str(self.tc_m_S[i, 1]) + "  " + str(self.x_tm_S[i, 1]) + "\n")
-                self.f.write(str(self.tc_m_S[i, 2]) + "  " + str(self.x_tm_S[i, 2]) + "\n")
-                self.f.write("N\n")
-                # Inputting second blade row thickness-to-chord ratio and location
-                self.f.write(str(self.tc_m_R[i, 0]) + "  " + str(self.x_tm_R[i, 0]) + "\n")
-                self.f.write(str(self.tc_m_R[i, 1]) + "  " + str(self.x_tm_R[i, 1]) + "\n")
-                self.f.write(str(self.tc_m_R[i, 2]) + "  " + str(self.x_tm_R[i, 2]) + "\n")
+            self.f.write("Y\nY\n")
         self.f.close()
 
     def Variables(self, R, phi, psi, r_m, chords, rowGap, Twist, QO_LE, QO_TE, tc_m, x_tm):
@@ -231,25 +213,48 @@ class Meangen2Parablade:
             CASCADE_TYPE = "ANNULAR"
             sec_count = 30
             point_count = 30
-        template_dir = "/home/evert/Documents/TU_Delft_administratie/Thesis/Pythonscripts"
-        # d_range = np.arange(1. / 7, 1.0 - 1. / 7, 1. / 7)
-        # print(d_range)
-        D1 = 0.45
-        D2 = 0.30
-        L = 1 - D1 - D2
-        step = L/7
-        d_range = np.arange(D1, 1 - D2 - step, step)
+
+        HOME = os.environ["M2BFM"]
+
+        template_dir = HOME + "templates/"
+
+        N_b = np.zeros(n_rows)
+        D1 = np.zeros(n_rows)
+        D2 = np.zeros(n_rows)
+        R_LE = np.zeros(n_rows)
+        R_TE = np.zeros(n_rows)
+        T = np.zeros([6, n_rows])
+
         if self.machineType == 'C':
-            N_b = np.zeros(n_rows)
+
             for i in range(self.n_stage):
                 N_b[2*i] += self.N_b_R[i]
                 N_b[2*i + 1] += self.N_b_S[i]
+                D1[2*i] += self.D_1_R[i]
+                D1[2*i + 1] += self.D_1_S[i]
+                D2[2 * i] += self.D_2_R[i]
+                D2[2 * i + 1] += self.D_2_S[i]
+                R_LE[2 * i] += self.t_LE_R[i]
+                R_LE[2 * i + 1] += self.t_LE_S[i]
+                R_TE[2 * i] += self.t_TE_R[i]
+                R_TE[2 * i + 1] += self.t_TE_S[i]
+                T[:, 2 * i] += self.T_R[i, :]
+                T[:, 2 * i + 1] += self.T_S[i, :]
             self.N_b = N_b
         else:
-            N_b = np.zeros(n_rows)
             for i in range(self.n_stage):
                 N_b[2 * i] += self.N_b_S[i]
                 N_b[2 * i + 1] += self.N_b_R[i]
+                D1[2 * i] += self.D_1_S[i]
+                D1[2 * i + 1] += self.D_1_R[i]
+                D2[2 * i] += self.D_2_S[i]
+                D2[2 * i + 1] += self.D_2_R[i]
+                R_LE[2 * i] += self.t_LE_S[i]
+                R_LE[2 * i + 1] += self.t_LE_R[i]
+                R_TE[2 * i] += self.t_TE_S[i]
+                R_TE[2 * i + 1] += self.t_TE_R[i]
+                T[:, 2 * i] += self.T_S[i, :]
+                T[:, 2 * i + 1] += self.T_R[i, :]
             self.N_b = N_b
         for i in range(n_rows):
             os.system("cp " + template_dir + "/template_turbine.cfg ./Bladerow_" + str(i+1) + ".cfg")
@@ -282,43 +287,28 @@ class Meangen2Parablade:
             X_le = np.transpose(self.X_LE[n_start:n_end, i])
             os.system("sed -i 's/X_LE/" + ", ".join([str(s) for s in X_le]) + "/g' Bladerow_" + str(i + 1) + ".cfg")
             Z_le = np.transpose(self.Z_LE[:, i])
-            os.system("sed -i 's/Z_LE/" + ", ".join([str(s) for s in Z_le]) + "/g' Bladerow_" + str(i + 1) + ".cfg")
+            Z_te = np.transpose(self.Z_TE[:, i])
+            if (i+1) % 2 == 0:
+                os.system("sed -i 's/Z_LE/" + ", ".join([str(s) for s in Z_le]) + "/g' Bladerow_" + str(i + 1) + ".cfg")
+                os.system("sed -i 's/Z_TE/" + ", ".join([str(s) for s in Z_te]) + "/g' Bladerow_" + str(i + 1) + ".cfg")
+            else:
+                z_le = []
+                z_te = []
+                for j in range(len(Z_le)):
+                    z_le.append(Z_le[0] + 0.99 * (Z_le[j] - Z_le[0]))
+                    z_te.append(Z_te[0] + 0.99 * (Z_te[j] - Z_te[0]))
+                os.system("sed -i 's/Z_LE/" + ", ".join([str(s) for s in z_le]) + "/g' Bladerow_" + str(i + 1) + ".cfg")
+                os.system("sed -i 's/Z_TE/" + ", ".join([str(s) for s in z_te]) + "/g' Bladerow_" + str(i + 1) + ".cfg")
             X_te = np.transpose(self.X_TE[n_start:n_end, i])
             os.system("sed -i 's/X_TE/" + ", ".join([str(s) for s in X_te]) + "/g' Bladerow_" + str(i + 1) + ".cfg")
-            Z_te = np.transpose(self.Z_TE[:, i])
-            os.system("sed -i 's/Z_TE/" + ", ".join([str(s) for s in Z_te]) + "/g' Bladerow_" + str(i + 1) + ".cfg")
 
-            T = np.zeros([6, n_sec])
-            D = np.zeros([2, n_sec])
-            R_LE = []
-            R_TE = []
-            for j in range(n_sec):
-                q = j
-                # chord = abs(X_te[q] - X_le[q])
-                chord = abs(X_te[q] - X_le[q])/np.cos(stagger[q])
-                x_tmax = self.x_tmax[q, i]
-                t_max = self.t_max[q, i]# * chord
-                t_le = self.t_le[q, i]# * chord
-                R_LE.append(0.5*t_le)
-                t_te = self.t_te[q, i]# * chord
-                R_TE.append(0.5*t_te)
-                thick = interp1d([0, x_tmax, 1.0], [t_le, t_max, t_te])
 
-                D[0, j] += d_range[0]# * chord#* abs(X_te[q] - X_le[q])
-                D[1, j] += d_range[-1]# * chord#* abs(X_te[q] - X_le[q])
-                for n in range(len(d_range)):
-                    x = d_range[n]
-                    T[n, q] += 0.5 * thick(x)
-
-            # for n in range(len(d_range)):
-            #     os.system("sed -i 's/T"+str(n+1)+"/"+", ".join([str(t) for t in T[n, :]])+"/g' Bladerow_" + str(i + 1) + ".cfg")
-            t_thingy = [0.015, 0.017, 0.019, 0.024, 0.030, 0.020]
-            for n in range(len(t_thingy)):
-                os.system("sed -i 's/T"+str(n+1)+"/"+str(t_thingy[n])+"/g' Bladerow_" + str(i + 1) + ".cfg")
-            os.system("sed -i 's/D1/"+", ".join([str(d) for d in D[0, :]]) + "/g' Bladerow_" + str(i + 1) + ".cfg")
-            os.system("sed -i 's/D2/" + ", ".join([str(d) for d in D[1, :]]) + "/g' Bladerow_" + str(i + 1) + ".cfg")
-            os.system("sed -i 's/R_LE/" + ", ".join([str(d) for d in R_LE]) + "/g' Bladerow_" + str(i + 1) + ".cfg")
-            os.system("sed -i 's/R_TE/" + ", ".join([str(d) for d in R_TE]) + "/g' Bladerow_" + str(i + 1) + ".cfg")
+            for n in range(6):
+                os.system("sed -i 's/T"+str(n+1)+"/"+", ".join([str(T[n, i]) for j in range(n_sec)]) +"/g' Bladerow_" + str(i + 1) + ".cfg")
+            os.system("sed -i 's/D1/"+", ".join([str(D1[i]) for j in range(n_sec)]) + "/g' Bladerow_" + str(i + 1) + ".cfg")
+            os.system("sed -i 's/D2/" + ", ".join([str(D2[i]) for j in range(n_sec)]) + "/g' Bladerow_" + str(i + 1) + ".cfg")
+            os.system("sed -i 's/R_LE/" + ", ".join([str(R_LE[i]) for j in range(n_sec)]) + "/g' Bladerow_" + str(i + 1) + ".cfg")
+            os.system("sed -i 's/R_TE/" + ", ".join([str(R_TE[i]) for j in range(n_sec)]) + "/g' Bladerow_" + str(i + 1) + ".cfg")
             os.system("sed -i 's/THETA_IN/" + ", ".join([str(d) for d in self.theta_in[n_start:n_end, i]]) +
                       "/g' Bladerow_" + str(i + 1) + ".cfg")
             os.system("sed -i 's/THETA_OUT/" + ", ".join([str(d) for d in self.theta_out[n_start:n_end, i]]) +

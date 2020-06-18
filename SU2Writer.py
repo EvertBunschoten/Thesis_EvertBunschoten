@@ -1,6 +1,6 @@
 import numpy as np
 import os
-import sys
+import re
 
 class writeBFMinput:
     n_sec = None
@@ -43,7 +43,26 @@ class writeBFMinput:
                         self.BFMfile.write(line.strip()+"\t"+str(rotFac[j-1])+"\t"+str(int(blades[j-1]))+"\n")
                     #self.BFMfile.writelines(lines)
                 file.close()
-
+def ReadUserInput(name):
+    IN = {}
+    infile = open(name, 'r')
+    for line in infile:
+      words = re.split('=| |\n|,|[|]', line)
+      if not any(words[0] in s for s in ['\n', '%', ' ', '#']):
+        words = list(filter(None, words))
+        for i in range(0, len(words)):
+            try:
+                words[i] = float(words[i])
+            except:
+                words[i] = words[i]
+        if len(words[1::1]) == 1 and isinstance(words[1], float):
+            IN[words[0]] = [words[1]]
+        elif len(words[1::1]) == 1 and isinstance(words[1], str):
+            IN[words[0]] = words[1]
+        else:
+            IN[words[0]] = words[1::1]
+    IN['Config_Path'] = name
+    return IN
 
 
 
